@@ -89,7 +89,7 @@ $('#recordsnapshot').onclick=()=>{
 $('#backup').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),ln=document.createElement('a');ln.href=u;ln.download='pogo-bag-backup.json';ln.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
 $('#restore').onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d.accounts)||d.accounts.length!==3||d.accounts.some(a=>!a||typeof a.name!=='string'||!a.counts||typeof a.counts!=='object'||!a.targets||typeof a.targets!=='object'))throw Error('Invalid backup');for(const acc of d.accounts){acc.history=Array.isArray(acc.history)?acc.history.filter(x=>x&&typeof x.at==='string'&&Number.isFinite(x.used)&&Number.isFinite(x.capacity)&&x.counts&&typeof x.counts==='object').slice(-20):[]}if(confirm('Replace all current inventory data?')){data=d;save();render()}}catch(err){alert('Unable to restore: '+err.message)}};
 $('#screenshots').onchange=e=>{screens=[...e.target.files].slice(0,10).filter(f=>f.type.startsWith('image/')&&f.size<12e6);$('#previews').replaceChildren();for(const f of screens){const img=document.createElement('img');const u=URL.createObjectURL(f);img.src=u;img.onload=()=>URL.revokeObjectURL(u);$('#previews').append(img)}};
-function reviewUI(){$('#review').innerHTML=staged.map((x,n)=>'<div class="review"><input type="checkbox" data-check="'+n+'" '+(x.check?'checked':'')+'><select data-select="'+n+'">'+catalog.map(i=>'<option value="'+i[0]+'" '+(x.id===i[0]?'selected':'')+'>'+escape(i[1])+'</option>').join('')+'</select>'+(x.conflict?'<small style="color:#d56b4f">Conflicting counts</small>':'')+'<input data-val="'+n+'" type="number" min="0" value="'+num(x.qty)+'"></div>').join('');document.querySelectorAll('[data-check]').forEach(e=>e.onchange=()=>staged[+e.dataset.check].check=e.checked);document.querySelectorAll('[data-select]').forEach(e=>e.onchange=()=>staged[+e.dataset.select].id=e.value);document.querySelectorAll('[data-val]').forEach(e=>e.onchange=()=>staged[+e.dataset.val].qty=num(e.value))}
+function reviewUI(){$('#review').innerHTML=staged.map((x,n)=>'<div class="review"><input type="checkbox" data-check="'+n+'" '+(x.check?'checked':'')+'><select data-select="'+n+'">'+catalog.map(i=>'<option value="'+i[0]+'" '+(x.id===i[0]?'selected':'')+'>'+escape(i[1])+'</option>').join('')+'</select>'+(x.conflict?'<small style="color:#d56b4f">Conflicting counts</small>':'')+'<input data-val="'+n+'" type="number" min="0" placeholder="Check" value="'+(Number.isInteger(x.qty)?num(x.qty):'')+'"></div>').join('');document.querySelectorAll('[data-check]').forEach(e=>e.onchange=()=>staged[+e.dataset.check].check=e.checked);document.querySelectorAll('[data-select]').forEach(e=>e.onchange=()=>staged[+e.dataset.select].id=e.value);document.querySelectorAll('[data-val]').forEach(e=>e.onchange=()=>{staged[+e.dataset.val].qty=e.value.trim()===''?null:num(e.value)})}
 $('#addrow').onclick=()=>{staged.push({id:'poke',qty:0,check:false});reviewUI()};
 $('#scan').onclick=async()=>{
  if(!screens.length){alert('Select screenshots first');return}
@@ -100,7 +100,7 @@ $('#scan').onclick=async()=>{
   if(accountIndex!==data.selected){status.textContent='Account changed. No quantities applied.';return}
   for(const r of result.proposed){
    const prior=staged.find(x=>x.id===r.id);
-   if(prior){if(prior.qty!==r.qty)prior.conflict=true;continue}
+   if(prior){if(prior.qty!==r.qty){prior.conflict=true;prior.qty=null;prior.unreadable=true}continue}
    staged.push(r);
   }
   reviewUI();
@@ -110,6 +110,6 @@ $('#scan').onclick=async()=>{
  }catch(err){status.textContent='OCR unavailable: '+err.message+'. Manual entry is still available.'}
  finally{$('#scan').disabled=false;$('#account').disabled=false}
 };
-$('#apply').onclick=()=>{const chosen=staged.filter(x=>x.check),ids=chosen.map(x=>x.id);if(new Set(ids).size!==ids.length){alert('Duplicate selected items. Resolve before applying.');return}chosen.forEach(x=>a().counts[x.id]=num(x.qty));staged=staged.filter(x=>!x.check);reviewUI();if(chosen.length){changed();alert(chosen.length+' quantities updated')}};
+$('#apply').onclick=()=>{const chosen=staged.filter(x=>x.check),ids=chosen.map(x=>x.id);if(chosen.some(x=>!Number.isInteger(x.qty))){alert('Enter and verify a quantity for every checked item.');return}if(new Set(ids).size!==ids.length){alert('Duplicate selected items. Resolve before applying.');return}chosen.forEach(x=>a().counts[x.id]=num(x.qty));staged=staged.filter(x=>!x.check);reviewUI();if(chosen.length){changed();alert(chosen.length+' quantities updated')}};
 render();
 </script></body></html>
