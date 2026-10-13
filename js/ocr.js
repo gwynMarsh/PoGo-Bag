@@ -109,6 +109,34 @@ async function prepared(file) {
     return canvas;
   } finally {URL.revokeObjectURL(url)}
 }
+
+function cropColumn(canvas,index) {
+  const left=Math.floor(canvas.width*index/3);
+  const right=Math.ceil(canvas.width*(index+1)/3);
+  const crop=document.createElement('canvas');
+  const multiplier=1.65;
+  crop.width=Math.round((right-left)*multiplier);
+  crop.height=Math.round(canvas.height*multiplier);
+  const ctx=crop.getContext('2d');
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,crop.width,crop.height);
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(canvas,left,0,right-left,canvas.height,0,0,crop.width,crop.height);
+  return crop;
+}
+// Column OCR is run separately because Tesseract often merges three grid cells
+// into a single text line and truncates multi-word Berry labels.
+async function scanGridColumns(worker,canvas,catalog) {
+  const proposed=[];
+  for(let col=0;col<3;col++){
+    const crop=cropColumn(canvas,col);
+    try {
+      const result=await worker.recognize(crop,{}, {blocks:true,text:true});
+      proposed.push(...parseItemBoxes(result.data.blocks,catalog,crop.width,crop.height));
+    } finally {crop.width=crop.height=0}
+  }
+  return proposed;
+}
+
 export async function scanItemBag(files,catalog,onProgress=()=>{}) {
   const Tesseract=await getTesseract();
   let worker; const images=[];
@@ -121,6 +149,15 @@ export async function scanItemBag(files,catalog,onProgress=()=>{}) {
       try {
         const output=await worker.recognize(canvas,{}, {blocks:true,text:true});
         const found=parseItemBoxes(output.data.blocks,catalog,canvas.width,canvas.height);
+        // Grid-specific second pass: isolate columns to prevent labels and
+        // quantities from different items getting mixed in a single OCR line.
+        const grid=/(?:POK.E BALLS|BERRIES|MEDICINE)/i.test(output.data.text||'') &&
+          (output.data.text||'').split(/\r?\n/).some(line =>
+            (line.match(/\b(?:Potion|Ball|Revive|Berry)\b/gi)||[]).length>=2);
+        if(grid){
+          onProgress('Refining three-column item detection…');
+          found.push(...await scanGridColumns(worker,canvas,catalog));
+        }
         images.push({filename:files[i].name,found,raw:output.data.text||''});
       } finally {canvas.width=canvas.height=0}
     }
