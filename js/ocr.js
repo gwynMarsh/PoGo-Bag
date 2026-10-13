@@ -28,42 +28,61 @@ function tokens(blocks, width) {
   return all;
 }
 function quantity(s) {
-  const m = String(s).trim().match(/(?:^|\s)[x×✕]\s*([0-9OoIl|]{1,6})(?:\s|$)/i);
-  const alone = String(s).trim().match(/^([0-9OoIl|]{1,6})$/);
-  const v = m?.[1] || alone?.[1];
-  if (!v) return null;
-  const n = Number(v.replace(/[Oo]/g,'0').replace(/[Il|]/g,'1'));
-  return Number.isSafeInteger(n) && n >= 0 && n <= 999999 ? {n,marked:!!m} : null;
+  // Item Bag counts are visibly marked by an x, ×, or OCR confusion such as «.
+  // Never parse a lone 'I', 'l' or other page text as a quantity.
+  const m = String(s).match(/(?:^|[^\p{L}\p{N}])[x×✕«‹]\s*([0-9OoIl|]{1,6})(?=$|[^\p{L}\p{N}])/iu);
+  if(!m) return null;
+  const n = Number(m[1].replace(/[Oo]/g,'0').replace(/[Il|]/g,'1'));
+  return Number.isSafeInteger(n) && n >= 0 && n <= 999999 ? {n,marked:true} : null;
 }
-export function parseItemBoxes(blocks, catalog, width, height) {
-  const boxes = tokens(blocks,width);
-  const names = [];
-  for (const box of boxes) {
-    const text = normalize(box.text);
-    const item = [...catalog].sort((a,b)=>b.name.length-a.name.length)
-      .find(i=> text === normalize(i.name) || text.startsWith(normalize(i.name)+' '));
-    if (item) names.push({...box,item});
+export function parseItemBoxes(blocks,catalog,width,height) {
+  const boxes=tokens(blocks,width);
+  const lookup=[...catalog].sort((a,b)=>b.name.length-a.name.length);
+  const names=[];
+  for(const box of boxes) {
+    const normalized=normalize(box.text);
+    const item=lookup.find(i=>normalized===normalize(i.name)||normalized.startsWith(normalize(i.name)+' '));
+    if(!item) continue;
+    const cx=(box.box.x0+box.box.x1)/2;
+    // Name labels in list view appear on the right of the artwork.
+    names.push({...box,item,cx,cy:(box.box.y0+box.box.y1)/2});
   }
-  const amounts = boxes.map(box=>({...box,qty:quantity(box.text)})).filter(b=>b.qty);
-  const matched=[], used = new Set();
-  for (const name of names) {
-    const nx=(name.box.x0+name.box.x1)/2, ny=(name.box.y0+name.box.y1)/2;
-    const options = amounts.map((amount,i)=>{
-      if (used.has(i)) return null;
-      const bx=(amount.box.x0+amount.box.x1)/2, by=(amount.box.y0+amount.box.y1)/2;
-      const dx=Math.abs(nx-bx),dy=ny-by;
-      const grid=dy>0 && dy<Math.min(260,width*0.27) && dx<width*0.17;
-      const list=bx<nx && dx<width*.48 && Math.abs(dy)<Math.min(145,width*.15);
-      if (!grid && !list) return null;
-      const score=(grid?dx/width+dy/height:dx/width*.6+Math.abs(dy)/height)+(amount.qty.marked?0:.27);
-      return {amount,i,score};
+  const amounts=boxes.map(b=>({...b,qty:quantity(b.text),cx:(b.box.x0+b.box.x1)/2,cy:(b.box.y0+b.box.y1)/2})).filter(b=>b.qty);
+  const used=new Set(),matches=[];
+  // List view: the text column occupies the right, quantity badges occupy the left.
+  // Pair using the vertical item band, not adjacency in OCR reading order.
+  const listNames=names.filter(n=>n.cx>width*.30 && n.box.x0>width*.22).sort((a,b)=>a.cy-b.cy);
+  const listAmounts=amounts.filter(a=>a.cx<width*.30);
+  if(listNames.length>=2 && listAmounts.length) {
+    for(let ni=0;ni<listNames.length;ni++){
+      const name=listNames[ni],next=listNames[ni+1];
+      const endY=Math.min(next?.cy ?? height,name.cy+width*.32);
+      const choices=listAmounts.map((v,i)=>({v,i}))
+        .filter(x=>!used.has(x.v)&&x.v.cy>name.cy-width*.045&&x.v.cy<endY)
+        .sort((a,b)=>Math.abs(a.v.cy-(name.cy+width*.14))-Math.abs(b.v.cy-(name.cy+width*.14)));
+      if(!choices.length)continue;
+      const chosen=choices[0];used.add(chosen.v);
+      matches.push({id:name.item.id,quantity:chosen.v.qty.n});
+    }
+  }
+  // Grid view: quantity badge is above the item label, at the same horizontal center.
+  // Also run as fallback for any list names not successfully matched.
+  for(const name of names) {
+    if(matches.some(m=>m.id===name.item.id))continue;
+    const options=amounts.filter(a=>!used.has(a)).map(a=>{
+      const dx=Math.abs(a.cx-name.cx),dy=name.cy-a.cy;
+      const grid=dy>0&&dy<width*.36&&dx<width*.15;
+      const list=a.cx<width*.30&&name.cx>width*.30&&a.cy>name.cy-width*.04&&a.cy<name.cy+width*.31;
+      if(!grid&&!list)return null;
+      return {a,score:grid?(dx/width+dy/height):(Math.abs(a.cy-name.cy)/height+Math.abs(a.cx-name.cx)/(width*3))};
     }).filter(Boolean).sort((a,b)=>a.score-b.score);
-    if (!options.length || options[0].score>.43) continue;
-    const chosen=options[0];used.add(chosen.i);
-    matched.push({id:name.item.id,quantity:chosen.amount.qty.n});
+    if(!options.length)continue;
+    used.add(options[0].a);
+    matches.push({id:name.item.id,quantity:options[0].a.qty.n});
   }
-  return matched;
+  return matches;
 }
+
 let loader;
 async function getTesseract() {
   if(window.Tesseract)return window.Tesseract;
