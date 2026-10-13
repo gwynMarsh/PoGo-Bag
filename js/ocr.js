@@ -176,7 +176,7 @@ async function scanGridColumns(worker,canvas,catalog) {
   return proposed;
 }
 
-export async function scanItemBag(files,catalog,onProgress=()=>{}) {
+export async function scanItemBag(files,catalog,onProgress=()=>{},layout='grid') {
   const Tesseract=await getTesseract();
   let worker; const images=[];
   try {
@@ -188,13 +188,11 @@ export async function scanItemBag(files,catalog,onProgress=()=>{}) {
       try {
         const output=await worker.recognize(canvas,{}, {blocks:true,text:true});
         const found=parseItemBoxes(output.data.blocks,catalog,canvas.width,canvas.height);
-        // Grid-specific second pass: isolate columns to prevent labels and
-        // quantities from different items getting mixed in a single OCR line.
-        const grid=/(?:POK.E BALLS|BERRIES|MEDICINE)/i.test(output.data.text||'') &&
-          (output.data.text||'').split(/\r?\n/).some(line =>
-            (line.match(/\b(?:Potion|Ball|Revive|Berry)\b/gi)||[]).length>=2);
-        if(grid){
-          onProgress('Refining three-column item detection…');
+        // Run isolated column recognition on ALL grid screenshots, not only
+        // those containing category headings such as Medicine or Berries.
+        // Keep both passes for review, never silently overwrite contradictory counts.
+        if(layout==='grid'){
+          onProgress('Reading individual item columns…');
           found.push(...await scanGridColumns(worker,canvas,catalog));
         }
         images.push({filename:files[i].name,found,raw:output.data.text||''});
