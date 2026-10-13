@@ -109,6 +109,73 @@ async function prepared(file) {
     return canvas;
   } finally {URL.revokeObjectURL(url)}
 }
+
+function cropColumn(canvas,index) {
+  const left=Math.floor(canvas.width*index/3);
+  const right=Math.ceil(canvas.width*(index+1)/3);
+  const crop=document.createElement('canvas');
+  const multiplier=1.65;
+  crop.width=Math.round((right-left)*multiplier);
+  crop.height=Math.round(canvas.height*multiplier);
+  const ctx=crop.getContext('2d');
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,crop.width,crop.height);
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(canvas,left,0,right-left,canvas.height,0,0,crop.width,crop.height);
+  return crop;
+}
+// Column OCR is run separately because Tesseract often merges three grid cells
+// into a single text line and truncates multi-word Berry labels.
+
+function editDistance(a,b){
+  const m=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){
+    let last=m[0];m[0]=i;
+    for(let j=1;j<=b.length;j++){const old=m[j];m[j]=Math.min(m[j]+1,m[j-1]+1,last+(a[i-1]===b[j-1]?0:1));last=old}
+  }
+  return m[b.length];
+}
+function probableName(text,catalog){
+  const cleaned=normalize(text);
+  if(!cleaned||cleaned.length<4)return null;
+  let best=null;
+  for(const item of catalog){
+    const expected=normalize(item.name);
+    // Avoid matching an unrelated short fragment to a longer official item name.
+    const distance=editDistance(cleaned,expected);
+    const allowed=Math.max(1,Math.floor(expected.length*.29));
+    if(distance<=allowed&&(!best||distance<best.distance))best={item,distance};
+  }
+  return best?.item||null;
+}
+
+async function scanGridColumns(worker,canvas,catalog) {
+  const proposed=[];
+  for(let col=0;col<3;col++){
+    const crop=cropColumn(canvas,col);
+    try {
+      const result=await worker.recognize(crop,{}, {blocks:true,text:true});
+      const boxes=tokens(result.data.blocks,crop.width);
+      const names=[],amounts=[];
+      for(const b of boxes){
+        const normalized=normalize(b.text);
+        const item=probableName(normalized,catalog);
+        if(item) names.push({item,cy:(b.box.y0+b.box.y1)/2});
+        const q=quantity(b.text);
+        if(q) amounts.push({q,cy:(b.box.y0+b.box.y1)/2});
+      }
+      const taken=new Set();
+      for(const name of names.sort((a,b)=>a.cy-b.cy)){
+        const nearest=amounts.map((amount,i)=>({amount,i,dy:name.cy-amount.cy}))
+          .filter(x=>!taken.has(x.i)&&x.dy>0&&x.dy<crop.width*.85)
+          .sort((a,b)=>a.dy-b.dy)[0];
+        if(nearest){taken.add(nearest.i);proposed.push({id:name.item.id,quantity:nearest.amount.q.n})}
+        else proposed.push({id:name.item.id,quantity:null}); // Visible label, count unreadable.
+      }
+    } finally {crop.width=crop.height=0}
+  }
+  return proposed;
+}
+
 export async function scanItemBag(files,catalog,onProgress=()=>{}) {
   const Tesseract=await getTesseract();
   let worker; const images=[];
@@ -121,6 +188,15 @@ export async function scanItemBag(files,catalog,onProgress=()=>{}) {
       try {
         const output=await worker.recognize(canvas,{}, {blocks:true,text:true});
         const found=parseItemBoxes(output.data.blocks,catalog,canvas.width,canvas.height);
+        // Grid-specific second pass: isolate columns to prevent labels and
+        // quantities from different items getting mixed in a single OCR line.
+        const grid=/(?:POK.E BALLS|BERRIES|MEDICINE)/i.test(output.data.text||'') &&
+          (output.data.text||'').split(/\r?\n/).some(line =>
+            (line.match(/\b(?:Potion|Ball|Revive|Berry)\b/gi)||[]).length>=2);
+        if(grid){
+          onProgress('Refining three-column item detection…');
+          found.push(...await scanGridColumns(worker,canvas,catalog));
+        }
         images.push({filename:files[i].name,found,raw:output.data.text||''});
       } finally {canvas.width=canvas.height=0}
     }
@@ -130,8 +206,10 @@ export async function scanItemBag(files,catalog,onProgress=()=>{}) {
     if(!groups.has(x.id))groups.set(x.id,new Set());
     groups.get(x.id).add(x.quantity);
   }
-  const proposed=[...groups].map(([id,counts])=>({
-    id,qty:[...counts][0],check:false,conflict:counts.size>1
-  }));
+  const proposed=[...groups].map(([id,counts])=>{
+    const values=[...counts].filter(x=>Number.isInteger(x));
+    return {id,qty:values.length===1?values[0]:null,check:false,
+      conflict:values.length>1,unreadable:values.length!==1};
+  });
   return {proposed,images};
 }
