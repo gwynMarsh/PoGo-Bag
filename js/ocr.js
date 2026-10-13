@@ -131,7 +131,25 @@ async function scanGridColumns(worker,canvas,catalog) {
     const crop=cropColumn(canvas,col);
     try {
       const result=await worker.recognize(crop,{}, {blocks:true,text:true});
-      proposed.push(...parseItemBoxes(result.data.blocks,catalog,crop.width,crop.height));
+      const boxes=tokens(result.data.blocks,crop.width);
+      const names=[],amounts=[];
+      for(const b of boxes){
+        const normalized=normalize(b.text);
+        const name=[...catalog].sort((a,b)=>b.name.length-a.name.length)
+          .find(i=> normalized===normalize(i.name) || normalized.startsWith(normalize(i.name)+' '));
+        if(name)names.push({item:name,cy:(b.box.y0+b.box.y1)/2});
+        const q=quantity(b.text);
+        if(q)amounts.push({q,cy:(b.box.y0+b.box.y1)/2});
+      }
+      // In every grid cell, the count badge lies immediately ABOVE its label.
+      // Limit to the closest count in that column and never infer a missing digit.
+      const taken=new Set();
+      for(const name of names.sort((a,b)=>a.cy-b.cy)){
+        const nearest=amounts.map((amount,i)=>({amount,i,dy:name.cy-amount.cy}))
+          .filter(x=>!taken.has(x.i)&&x.dy>0&&x.dy<crop.width*.85)
+          .sort((a,b)=>a.dy-b.dy)[0];
+        if(nearest){taken.add(nearest.i);proposed.push({id:name.item.id,quantity:nearest.amount.q.n})}
+      }
     } finally {crop.width=crop.height=0}
   }
   return proposed;
