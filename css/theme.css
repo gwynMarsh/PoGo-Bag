@@ -1,0 +1,179 @@
+/*
+  PoGo Bag — mint / aqua theme
+  Inspired by the user's Pokémon GO UI color reference. Original CSS; no game artwork.
+  The existing base stylesheet remains in index.html until a later UI refactor.
+*/
+:root {
+  color-scheme: light;
+  font-family: "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --bg: #f0faf5;
+  --card: #ffffff;
+  --ink: #183d44;
+  --muted: #536e74;
+  --edge: #cce5df;
+  --accent: #087f88;
+  --accent-alt: #1bbf9a;
+  --accent-ink: #ffffff;
+  --soft-accent: #ddf7eb;
+  --soft-accent-ink: #11645c;
+  --surface: #f5fcf8;
+  --meter-track: #d9ebe6;
+  --warning-bg: #fff4dd;
+  --warning-ink: #775116;
+  --danger-bg: #ffe8e8;
+  --danger-ink: #a83140;
+  --shadow: 0 7px 24px rgba(24, 104, 93, .055);
+}
+
+html {
+  font-family: "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+body {
+  background: radial-gradient(ellipse at 100% 0%, #ddf9df 0%, transparent 48%),
+              var(--bg);
+  color: var(--ink);
+  font-family: inherit;
+}
+header {
+  background: linear-gradient(110deg, #f8fff9, #e8f9f0);
+  border-bottom-color: var(--edge);
+}
+header strong {
+  color: #0e797f;
+  font-weight: 900;
+  letter-spacing: .01em;
+}
+h1, h2 { color: var(--ink); }
+h1 { font-weight: 900; letter-spacing: -.015em; }
+h2 { font-weight: 700; }
+small, .muted, .hint { color: var(--muted); }
+.card {
+  background: var(--card);
+  border-color: var(--edge);
+  box-shadow: var(--shadow);
+}
+input, select {
+  background: var(--card);
+  border-color: #bcd9d3;
+  color: var(--ink);
+  accent-color: var(--accent);
+}
+input::placeholder { color: #677f82; opacity: 1; }
+input[type="checkbox"] { accent-color: var(--accent); }
+input[type="file"] { max-width: 100%; }
+input[type="file"]::file-selector-button {
+  padding: 9px 12px;
+  margin-right: 10px;
+  background: var(--soft-accent);
+  color: var(--soft-accent-ink);
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+button { font-family: inherit; }
+button.primary {
+  background: linear-gradient(115deg, var(--accent), var(--accent-alt));
+  color: var(--accent-ink);
+  border-radius: 11px;
+  box-shadow: 0 3px 10px rgba(8, 127, 136, .14);
+}
+button.secondary {
+  background: var(--card);
+  border-color: var(--edge);
+  color: var(--ink);
+}
+button.secondary:hover { background: var(--surface); }
+button:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
+.toolbar button.on {
+  background: var(--soft-accent);
+  border-color: var(--accent);
+  color: var(--soft-accent-ink);
+}
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+  outline: 3px solid #6bd7ca;
+  outline-offset: 2px;
+}
+.pill {
+  background: var(--soft-accent);
+  color: var(--soft-accent-ink);
+}
+.pill.is-warning { background: var(--warning-bg); color: var(--warning-ink); }
+.pill.is-danger { background: var(--danger-bg); color: var(--danger-ink); }
+.pill.is-neutral { background: #e8f1f3; color: #42616c; }
+.alert { background: var(--warning-bg); color: var(--warning-ink); }
+.progress { background: var(--meter-track); }
+.bar { background: var(--meter-track); }
+.chart b { background: var(--card); color: var(--ink); }
+.items.grid .item {
+  background: var(--surface);
+  border-color: var(--edge);
+}
+.review .review-note { color: var(--danger-ink); }
+.review .review-qty:invalid { outline: 2px solid var(--danger-ink); }
+#previews img { border: 1px solid var(--edge); }
+nav {
+  background: rgba(248, 255, 250, .94);
+  border-top-color: var(--edge);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+nav button { color: #56777c; }
+nav button.active {
+  color: var(--accent);
+  border-top-color: var(--accent);
+  background: rgba(38, 192, 164, .07);
+}
+#ocrdebug pre {
+  background: var(--surface);
+  padding: 10px;
+  border: 1px solid var(--edge);
+  border-radius: 9px;
+}
+::selection { background: #b8f0d9; color: #123f42; }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0e2028;
+    --card: #172e35;
+    --ink: #e7f7f3;
+    --muted: #b1cbd0;
+    --edge: #30565c;
+    --accent: #52d7c0;
+    --accent-alt: #31b0c4;
+    --accent-ink: #07313a;
+    --soft-accent: #234a49;
+    --soft-accent-ink: #b5f6e2;
+    --surface: #1c3940;
+    --meter-track: #304c54;
+    --warning-bg: #423821;
+    --warning-ink: #ffe1a0;
+    --danger-bg: #502d36;
+    --danger-ink: #ffb6b8;
+    --shadow: 0 8px 24px rgba(0, 0, 0, .14);
+  }
+  body {
+    background: radial-gradient(ellipse at 100% 0%, #153d3c 0%, transparent 46%),
+                var(--bg);
+  }
+  header { background: linear-gradient(110deg, #18343b, #1b4944); }
+  header strong { color: #8ff2dc; }
+  input, select { border-color: var(--edge); background: #193138; }
+  input::placeholder { color: #adc5c8; }
+  input[type="file"]::file-selector-button { background: var(--soft-accent); }
+  button.primary { box-shadow: 0 3px 12px rgba(41, 210, 179, .10); }
+  button.secondary { background: #1a343b; }
+  button.secondary:hover { background: #24484c; }
+  .pill.is-neutral { background: #2b444d; color: #d1e8ec; }
+  nav { background: rgba(18, 40, 48, .96); }
+  nav button { color: #afc7cb; }
+  nav button.active { background: rgba(78, 210, 184, .08); }
+  ::selection { background: #276a6b; color: #effffb; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button.primary, button.secondary, nav button { transition: background-color .16s ease, color .16s ease, border-color .16s ease; }
+}
