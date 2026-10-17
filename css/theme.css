@@ -134,8 +134,47 @@ nav button.active {
 }
 ::selection { background: #b8f0d9; color: #123f42; }
 
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e2028;
+  --card: #172e35;
+  --ink: #e7f7f3;
+  --muted: #b1cbd0;
+  --edge: #30565c;
+  --accent: #52d7c0;
+  --accent-alt: #31b0c4;
+  --accent-ink: #07313a;
+  --soft-accent: #234a49;
+  --soft-accent-ink: #b5f6e2;
+  --surface: #1c3940;
+  --meter-track: #304c54;
+  --warning-bg: #423821;
+  --warning-ink: #ffe1a0;
+  --danger-bg: #502d36;
+  --danger-ink: #ffb6b8;
+  --shadow: 0 8px 24px rgba(0, 0, 0, .14);
+}
+:root[data-theme="dark"] body {
+  background: radial-gradient(ellipse at 100% 0%, #153d3c 0%, transparent 46%), var(--bg);
+}
+:root[data-theme="dark"] header { background: linear-gradient(110deg, #18343b, #1b4944); }
+:root[data-theme="dark"] header strong { color: #8ff2dc; }
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select { border-color: var(--edge); background: #193138; }
+:root[data-theme="dark"] input::placeholder { color: #adc5c8; }
+:root[data-theme="dark"] input[type="file"]::file-selector-button { background: var(--soft-accent); }
+:root[data-theme="dark"] button.primary { box-shadow: 0 3px 12px rgba(41, 210, 179, .10); }
+:root[data-theme="dark"] button.secondary { background: #1a343b; }
+:root[data-theme="dark"] button.secondary:hover { background: #24484c; }
+:root[data-theme="dark"] .pill.is-neutral { background: #2b444d; color: #d1e8ec; }
+:root[data-theme="dark"] nav { background: rgba(18, 40, 48, .96); }
+:root[data-theme="dark"] nav button { color: #afc7cb; }
+:root[data-theme="dark"] nav button.active { background: rgba(78, 210, 184, .08); }
+:root[data-theme="dark"] ::selection { background: #276a6b; color: #effffb; }
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]) {
     color-scheme: dark;
     --bg: #0e2028;
     --card: #172e35;
@@ -155,23 +194,23 @@ nav button.active {
     --danger-ink: #ffb6b8;
     --shadow: 0 8px 24px rgba(0, 0, 0, .14);
   }
-  body {
-    background: radial-gradient(ellipse at 100% 0%, #153d3c 0%, transparent 46%),
-                var(--bg);
+  :root:not([data-theme]) body {
+    background: radial-gradient(ellipse at 100% 0%, #153d3c 0%, transparent 46%), var(--bg);
   }
-  header { background: linear-gradient(110deg, #18343b, #1b4944); }
-  header strong { color: #8ff2dc; }
-  input, select { border-color: var(--edge); background: #193138; }
-  input::placeholder { color: #adc5c8; }
-  input[type="file"]::file-selector-button { background: var(--soft-accent); }
-  button.primary { box-shadow: 0 3px 12px rgba(41, 210, 179, .10); }
-  button.secondary { background: #1a343b; }
-  button.secondary:hover { background: #24484c; }
-  .pill.is-neutral { background: #2b444d; color: #d1e8ec; }
-  nav { background: rgba(18, 40, 48, .96); }
-  nav button { color: #afc7cb; }
-  nav button.active { background: rgba(78, 210, 184, .08); }
-  ::selection { background: #276a6b; color: #effffb; }
+  :root:not([data-theme]) header { background: linear-gradient(110deg, #18343b, #1b4944); }
+  :root:not([data-theme]) header strong { color: #8ff2dc; }
+  :root:not([data-theme]) input,
+  :root:not([data-theme]) select { border-color: var(--edge); background: #193138; }
+  :root:not([data-theme]) input::placeholder { color: #adc5c8; }
+  :root:not([data-theme]) input[type="file"]::file-selector-button { background: var(--soft-accent); }
+  :root:not([data-theme]) button.primary { box-shadow: 0 3px 12px rgba(41, 210, 179, .10); }
+  :root:not([data-theme]) button.secondary { background: #1a343b; }
+  :root:not([data-theme]) button.secondary:hover { background: #24484c; }
+  :root:not([data-theme]) .pill.is-neutral { background: #2b444d; color: #d1e8ec; }
+  :root:not([data-theme]) nav { background: rgba(18, 40, 48, .96); }
+  :root:not([data-theme]) nav button { color: #afc7cb; }
+  :root:not([data-theme]) nav button.active { background: rgba(78, 210, 184, .08); }
+  :root:not([data-theme]) ::selection { background: #276a6b; color: #effffb; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
